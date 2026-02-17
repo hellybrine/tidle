@@ -61,11 +61,10 @@
 
   // prettier-ignore
   const COMMANDS = new Map([
-    ['a', { name: 'AI', searchTemplate: '/?q={}', suggestions: ['a/lumo', 'a/claude', 'a/gemini', 'a/grok'], url: 'https://chatgpt.com' }],
+    ['a', { name: 'AI', searchTemplate: '/?q={}', suggestions: ['a/claude', 'a/gemini', 'a/grok'], url: 'https://chatgpt.com' }],
     ['a/claude', { url: 'https://claude.ai/new' }],
     ['a/gemini', { url: 'https://gemini.google.com' }],
     ['a/grok', { url: 'https://grok.com' }],
-    ['a/lumo', { url: 'https://lumo.proton.me/u/0' }],
     ['b', { name: Bugcrowd, url: 'https://bugcrowd.com' }],
     ['c', { name: 'Cloudflare', url: 'https://dash.cloudflare.com' }],
     ['d', { name: 'Discord', url: 'https://discord.com/channels/@me' }],
@@ -372,24 +371,12 @@
       return template.replace(/{}/g, encodeURIComponent(search));
     }
 
-    static #hasProtocol(s) {
-      return /^[a-zA-Z]+:\/\//i.test(s);
-    }
-
-    static #isUrl(s) {
-      return /^((https?:\/\/)?[\w-]+(\.[\w-]+)+\.?(:\d+)?(\/\S*)?)$/i.test(s);
-    }
-
     static #parseQuery = (raw) => {
       const query = raw.trim();
 
-      if (this.#isUrl(query)) {
-        const url = this.#hasProtocol(query) ? query : `https://${query}`;
-        return { query, url };
-      }
-
       if (COMMANDS.has(query)) {
-        const { key, url } = COMMANDS.get(query);
+        const { url } = COMMANDS.get(query);
+        const key = query;
         return { key, query, url };
       }
 
