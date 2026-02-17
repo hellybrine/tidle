@@ -532,6 +532,16 @@
     #input;
     #suggestions;
 
+    static #splitByFirstDelimiter(value, delimiter) {
+      const delimiterIndex = value.indexOf(delimiter);
+      if (delimiterIndex < 0) return null;
+
+      return {
+        key: value.slice(0, delimiterIndex),
+        value: value.slice(delimiterIndex + delimiter.length),
+      };
+    }
+
     constructor() {
       super();
       this.attachShadow({ mode: 'open' });
@@ -598,9 +608,11 @@
       }
 
       let splitBy = CONFIG.commandSearchDelimiter;
-      const [searchKey, rawSearch] = query.split(new RegExp(`${splitBy}(.*)`));
+      const searchSplit = Search.#splitByFirstDelimiter(query, splitBy);
+      const searchKey = searchSplit?.key;
+      const rawSearch = searchSplit?.value ?? '';
 
-      if (COMMANDS.has(searchKey)) {
+      if (searchKey && COMMANDS.has(searchKey)) {
         const command = COMMANDS.get(searchKey);
         const template = new URL(command.searchTemplate ?? '', command.url);
         const search = rawSearch.trim();
@@ -609,9 +621,11 @@
       }
 
       splitBy = CONFIG.commandPathDelimiter;
-      const [pathKey, path] = query.split(new RegExp(`${splitBy}(.*)`));
+      const pathSplit = Search.#splitByFirstDelimiter(query, splitBy);
+      const pathKey = pathSplit?.key;
+      const path = pathSplit?.value ?? '';
 
-      if (COMMANDS.has(pathKey)) {
+      if (pathKey && COMMANDS.has(pathKey)) {
         const command = COMMANDS.get(pathKey);
         const url = `${new URL(command.url).origin}/${path}`;
         return { key: pathKey, path, query, splitBy, url };
