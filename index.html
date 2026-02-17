@@ -60,9 +60,9 @@
   };
 
   const PROFILE = new URLSearchParams(window.location.search).get('profile');
-  const ACTIVE_PROFILE = PROFILE === 'work' ? 'work' : 'default';
+  const ACTIVE_PROFILE = PROFILE === 'work' ? 'work' : 'personal';
   document.documentElement.dataset.profile = ACTIVE_PROFILE;
-  if (ACTIVE_PROFILE === 'work') document.title = '~ work';
+  document.title = ACTIVE_PROFILE === 'work' ? '~ work' : '~ personal';
 
   // prettier-ignore
   const BASE_COMMANDS = new Map([
@@ -101,29 +101,24 @@
     ['0', { name: 'localhost', url: 'http://localhost:3000' }],
   ]);
 
-  const WORK_COMMANDS = new Map(BASE_COMMANDS);
-  WORK_COMMANDS.set('a', { name: 'AI', searchTemplate: '/?q={}', suggestions: ['a/claude', 'a/gemini', 'a/aws'], url: 'https://chatgpt.com' });
-  WORK_COMMANDS.set('b', { name: 'Bugcrowd', url: 'https://identity.bugcrowd.com/login' });
-  WORK_COMMANDS.set('c', { name: 'Calendar', url: 'https://calendar.google.com' });
-  WORK_COMMANDS.set('d', { name: 'Docs', url: 'https://docs.google.com/document/u/0/' });
-  WORK_COMMANDS.set('e', { name: 'Email', url: 'https://mail.google.com' });
-  WORK_COMMANDS.set('f', { name: 'Figma', url: 'https://www.figma.com/files/recent' });
-  WORK_COMMANDS.set('g', { name: 'GitHub', searchTemplate: '/search?q={}', suggestions: ['g/copilot', 'g/trending'], url: 'https://github.com' });
-  WORK_COMMANDS.set('h', { name: 'HubSpot', url: 'https://app.hubspot.com' });
-  WORK_COMMANDS.set('i', { name: 'InstantDB', url: 'https://instantdb.com/dash' });
-  WORK_COMMANDS.set('l', { name: 'Linear', url: 'https://linear.app' });
-  WORK_COMMANDS.set('m', { name: 'Meet', url: 'https://meet.google.com' });
-  WORK_COMMANDS.set('n', { name: 'Notion', url: 'https://www.notion.so' });
-  WORK_COMMANDS.set('o', { name: 'OpenAI', url: 'https://platform.openai.com' });
-  WORK_COMMANDS.set('p', { name: 'PostHog', url: 'https://us.posthog.com' });
-  WORK_COMMANDS.set('q', { name: 'QBO', url: 'https://qbo.intuit.com' });
-  WORK_COMMANDS.set('r', { name: 'Rippling', url: 'https://app.rippling.com' });
-  WORK_COMMANDS.set('s', { name: 'Slack', url: 'https://app.slack.com/client' });
-  WORK_COMMANDS.set('t', { name: 'TickTick', url: 'https://ticktick.com/webapp/#q/today/tasks' });
-  WORK_COMMANDS.set('u', { name: 'Upwork', url: 'https://www.upwork.com' });
-  WORK_COMMANDS.set('v', { name: 'Vercel', url: 'https://vercel.com/dashboard' });
-  WORK_COMMANDS.set('x', { name: 'X', url: 'https://x.com/home' });
-  WORK_COMMANDS.set('y', { name: 'YouTube', searchTemplate: '/results?search_query={}', url: 'https://www.youtube.com' });
+  // prettier-ignore
+  const WORK_COMMANDS = new Map([
+    ['a', { name: 'AWS', suggestions: ['a/iam'], url: 'https://console.aws.amazon.com' }],
+    ['a/iam', { url: 'https://us-east-1.console.aws.amazon.com/singlesignon/home' }],
+    ['b', { name: 'Bugcrowd', suggestions: ['b/bugcrowd'], url: 'https://identity.bugcrowd.com/login' }],
+    ['b/bugcrowd', { url: 'https://identity.bugcrowd.com/login' }],
+    ['c', { name: 'Confluence', url: 'https://www.atlassian.com/software/confluence' }],
+    ['ca', { name: 'Calendar', url: 'https://calendar.google.com' }],
+    ['cu', { name: 'Cursor', url: 'https://cursor.com' }],
+    ['d', { name: 'Drive', url: 'https://drive.google.com' }],
+    ['g', { name: 'GitHub', searchTemplate: '/search?q={}', suggestions: ['g/copilot', 'g/trending'], url: 'https://github.com' }],
+    ['i', { name: 'incident.io', url: 'https://app.incident.io' }],
+    ['j', { name: 'Jira', url: 'https://www.atlassian.com/software/jira' }],
+    ['m', { name: 'Work Mail', url: 'https://mail.google.com' }],
+    ['s', { name: 'Slack', url: 'https://app.slack.com/client' }],
+    ['w', { name: 'Wiz', url: 'https://app.wiz.io' }],
+    ['z', { name: 'Zoom', url: 'https://app.zoom.us/wc/home' }],
+  ]);
 
   const COMMANDS = ACTIVE_PROFILE === 'work' ? WORK_COMMANDS : BASE_COMMANDS;
 
@@ -143,11 +138,18 @@
         !event.altKey &&
         !event.ctrlKey &&
         !event.metaKey;
+      const isShiftQ =
+        event.shiftKey &&
+        event.key.toLowerCase() === 'q' &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey;
 
-      if (!isShiftW) return;
+      if (!isShiftW && !isShiftQ) return;
       event.preventDefault();
       event.stopImmediatePropagation();
-      openProfile('work');
+      if (isShiftW) openProfile('work');
+      if (isShiftQ) openProfile('personal');
     },
     true
   );
@@ -641,15 +643,15 @@
   }
 
   html[data-profile='work'] {
-    --color-background: #070707;
-    --color-text: #f1ebff;
-    --color-text-subtle: #b6a9d6;
+    --color-background: #050505;
+    --color-text: #ede5ff;
+    --color-text-subtle: #ab9ecf;
     background-image: linear-gradient(
       120deg,
-      #040404 0%,
-      #140821 32%,
-      #3f1a73 62%,
-      #5b21b6 100%
+      #030303 0%,
+      #0d0716 32%,
+      #2a124c 62%,
+      #43206f 100%
     );
     background-size: 260% 260%;
     animation: work-background-flow 18s ease infinite;
