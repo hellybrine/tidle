@@ -543,6 +543,27 @@
 </script>
 
 <style>
+  .date-time {
+    color: var(--color-text);
+    display: grid;
+    gap: 0.15rem;
+    left: 1.25rem;
+    line-height: 1.2;
+    pointer-events: none;
+    position: fixed;
+    top: 1.25rem;
+    z-index: 10;
+  }
+
+  .date-time .time {
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .date-time .date {
+    font-size: 0.85rem;
+  }
+
   html {
     background-color: var(--color-background);
     font-family: var(--font-family);
@@ -556,5 +577,35 @@
   }
 </style>
 
+<div class="date-time" aria-live="off">
+  <div class="time"></div>
+  <div class="date"></div>
+</div>
+<script>
+  const dateTime = document.querySelector('.date-time');
+  const timeNode = dateTime?.querySelector('.time');
+  const dateNode = dateTime?.querySelector('.date');
+  const timeFormatter = new Intl.DateTimeFormat([], {
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  const dateFormatter = new Intl.DateTimeFormat([], {
+    day: '2-digit',
+    month: 'short',
+    weekday: 'short',
+    year: 'numeric',
+  });
+
+  const updateDateTime = () => {
+    const now = new Date();
+    if (timeNode) timeNode.textContent = timeFormatter.format(now);
+    if (dateNode) dateNode.textContent = dateFormatter.format(now);
+  };
+
+  updateDateTime();
+  setInterval(updateDateTime, 1000);
+</script>
 <commands-component></commands-component>
 <search-component></search-component>
