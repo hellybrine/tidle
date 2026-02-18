@@ -1,4 +1,4 @@
-# Tilde
+# Tilted
 
 A minimal, keyboard-driven browser start page.
 
@@ -8,4 +8,4 @@ It supports dual profiles (personal and work), each with their own set of quick-
 
 One HTML file and a couple of fonts
 
-Feel free to fork and add your own touches to this, that's what mak
+Feel free to fork and add your own touches to this
