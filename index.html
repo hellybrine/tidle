@@ -68,6 +68,23 @@
   document.documentElement.dataset.profile = ACTIVE_PROFILE;
   document.title = ACTIVE_PROFILE === 'work' ? '~ work' : '~ personal';
 
+  const REDIRECTS_STORAGE_KEY = 'tilde-redirects';
+
+  const getRedirects = () => {
+    try { return JSON.parse(localStorage.getItem(REDIRECTS_STORAGE_KEY)) ?? {}; }
+    catch { return {}; }
+  };
+
+  const getRedirectUrl = (key) => getRedirects()[ACTIVE_PROFILE]?.[key];
+
+  const setRedirect = (key, url) => {
+    const all = getRedirects();
+    if (!all[ACTIVE_PROFILE]) all[ACTIVE_PROFILE] = {};
+    if (url) all[ACTIVE_PROFILE][key] = url;
+    else delete all[ACTIVE_PROFILE][key];
+    localStorage.setItem(REDIRECTS_STORAGE_KEY, JSON.stringify(all));
+  };
+
   // prettier-ignore
   const BASE_COMMANDS = new Map([
     ['a', { name: 'AI', searchTemplate: '/?q={}', suggestions: ['a/claude', 'a/gemini', 'a/grok', 'a/aws'], url: 'https://chatgpt.com' }],
@@ -216,12 +233,19 @@
         !event.altKey &&
         !event.ctrlKey &&
         !event.metaKey;
+      const isShiftP =
+        event.shiftKey &&
+        event.key.toLowerCase() === 'p' &&
+        !event.altKey &&
+        !event.ctrlKey &&
+        !event.metaKey;
 
-      if (!isShiftW && !isShiftQ) return;
+      if (!isShiftW && !isShiftQ && !isShiftP) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       if (isShiftW) openProfile('work');
       if (isShiftQ) openProfile('personal');
+      if (isShiftP) window.dispatchEvent(new CustomEvent('toggleredirects'));
     },
     true
   );
@@ -618,7 +642,7 @@
       if (COMMANDS.has(query)) {
         const { url } = COMMANDS.get(query);
         const key = query;
-        return { key, query, url };
+        return { key, query, url: getRedirectUrl(key) || url };
       }
 
       let splitBy = CONFIG.commandSearchDelimiter;
@@ -628,7 +652,8 @@
 
       if (searchKey && COMMANDS.has(searchKey)) {
         const command = COMMANDS.get(searchKey);
-        const template = new URL(command.searchTemplate ?? '', command.url);
+        const baseUrl = getRedirectUrl(searchKey) || command.url;
+        const template = new URL(command.searchTemplate ?? '', baseUrl);
         const search = rawSearch.trim();
         const url = Search.#formatSearchUrl(decodeURI(template.href), search);
         return { key: searchKey, query, search, splitBy, url };
@@ -641,7 +666,8 @@
 
       if (pathKey && COMMANDS.has(pathKey)) {
         const command = COMMANDS.get(pathKey);
-        const url = `${new URL(command.url).origin}/${path}`;
+        const baseUrl = getRedirectUrl(pathKey) || command.url;
+        const url = `${new URL(baseUrl).origin}/${path}`;
         return { key: pathKey, path, query, splitBy, url };
       }
 
@@ -792,6 +818,213 @@
   customElements.define('search-component', Search);
 </script>
 
+<template id="redirects-template">
+  <style>
+    .overlay {
+      align-items: center;
+      background: var(--color-background);
+      border: none;
+      display: none;
+      flex-direction: column;
+      height: 100%;
+      justify-content: flex-start;
+      left: 0;
+      padding: 0;
+      top: 0;
+      width: 100%;
+    }
+
+    .overlay[open] {
+      display: flex;
+    }
+
+    .container {
+      max-width: 40rem;
+      padding: 4rem 2rem;
+      width: 100%;
+    }
+
+    .header {
+      align-items: baseline;
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .title {
+      color: var(--color-text);
+      font-size: 1rem;
+      font-weight: bold;
+      margin: 0;
+    }
+
+    .profile-label {
+      color: var(--color-text-subtle);
+      font-size: 0.75rem;
+    }
+
+    .row {
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: 2.5rem 6rem 1fr;
+      padding: 0.5rem 0;
+    }
+
+    .row-key {
+      color: var(--color-text-subtle);
+      font-size: 0.8rem;
+    }
+
+    .row-key.active {
+      color: var(--color-text);
+    }
+
+    .row-name {
+      color: var(--color-text);
+      font-size: 0.8rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-input {
+      -moz-appearance: none;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 0.3rem;
+      color: var(--color-text);
+      font-family: var(--font-family);
+      font-size: 0.75rem;
+      outline: 0;
+      padding: 0.35rem 0.5rem;
+      transition: border-color var(--transition-speed);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .row-input:focus {
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .row-input::placeholder {
+      color: var(--color-text-subtle);
+      opacity: 0.5;
+    }
+
+    .hint {
+      color: var(--color-text-subtle);
+      font-size: 0.65rem;
+      margin-top: 1.5rem;
+      opacity: 0.6;
+    }
+  </style>
+  <dialog class="overlay">
+    <div class="container">
+      <div class="header">
+        <h2 class="title">Redirects</h2>
+        <span class="profile-label"></span>
+      </div>
+      <div class="rows"></div>
+      <div class="hint">Overrides are stored locally and never leave your browser. Clear a field to remove.</div>
+    </div>
+  </dialog>
+</template>
+
+<script type="module">
+  class Redirects extends HTMLElement {
+    #overlay;
+    #profileLabel;
+    #rows;
+
+    constructor() {
+      super();
+      this.attachShadow({ mode: 'open' });
+      const template = document.getElementById('redirects-template');
+      const clone = template.content.cloneNode(true);
+      this.#overlay = clone.querySelector('.overlay');
+      this.#profileLabel = clone.querySelector('.profile-label');
+      this.#rows = clone.querySelector('.rows');
+      window.addEventListener('toggleredirects', this.#toggle);
+      window.addEventListener('profilechange', this.#onProfileChange);
+      this.shadowRoot.append(clone);
+    }
+
+    disconnectedCallback() {
+      window.removeEventListener('toggleredirects', this.#toggle);
+      window.removeEventListener('profilechange', this.#onProfileChange);
+    }
+
+    #toggle = () => {
+      if (this.#overlay.open) this.#close();
+      else this.#open();
+    };
+
+    #open() {
+      this.#render();
+      this.#overlay.show();
+    }
+
+    #close() {
+      this.#overlay.close();
+    }
+
+    #onProfileChange = () => {
+      if (this.#overlay.open) this.#render();
+    };
+
+    #onKeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        this.#close();
+      }
+    };
+
+    #render() {
+      this.#profileLabel.textContent = ACTIVE_PROFILE;
+      this.#rows.innerHTML = '';
+      const redirects = getRedirects()[ACTIVE_PROFILE] ?? {};
+
+      const entries = Array.from(COMMANDS.entries()).filter(
+        ([, v]) => v?.name && v?.url
+      );
+
+      for (const [key, { name }] of entries) {
+        const row = document.createElement('div');
+        row.className = 'row';
+
+        const keyEl = document.createElement('span');
+        keyEl.className = 'row-key' + (redirects[key] ? ' active' : '');
+        keyEl.textContent = key;
+
+        const nameEl = document.createElement('span');
+        nameEl.className = 'row-name';
+        nameEl.textContent = name;
+
+        const input = document.createElement('input');
+        input.className = 'row-input';
+        input.type = 'text';
+        input.placeholder = 'redirect URL';
+        input.value = redirects[key] ?? '';
+        input.addEventListener('input', () => {
+          const val = input.value.trim();
+          setRedirect(key, val || '');
+          keyEl.className = 'row-key' + (val ? ' active' : '');
+        });
+        input.addEventListener('keydown', this.#onKeydown);
+
+        row.append(keyEl, nameEl, input);
+        this.#rows.append(row);
+      }
+    }
+  }
+
+  customElements.define('redirects-component', Redirects);
+</script>
+
 <style>
   @keyframes work-background-flow {
     0% {
@@ -865,14 +1098,14 @@
     user-select: none;
     background-image: linear-gradient(
       120deg,
-      #020707 0%,
-      #031414 12%,
+      #040c0c 0%,
+      #031010 12%,
       #042121 26%,
       #063131 42%,
       #074242 58%,
-      #0a4d4d 74%,
-      #0b4f4f 88%,
-      #0a4545 100%
+      #0a4646 74%,
+      #0b4949 88%,
+      #0c4646 100%
     );
     background-size: 260% 260%;
     animation: personal-background-flow 18s ease infinite;
@@ -965,4 +1198,5 @@
 </script>
 <commands-component></commands-component>
 <search-component></search-component>
+<redirects-component></redirects-component>
 <script>requestAnimationFrame(() => document.body.classList.add('ready'));</script>
